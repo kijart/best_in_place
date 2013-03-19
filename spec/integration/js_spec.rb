@@ -554,6 +554,20 @@ describe "JS behaviour", :js => true do
     page.should have_content('Last name was updated!')
   end
 
+  it "should fire off a callback when retrieve success with empty data" do
+    @user.save!
+    visit user_path(@user)
+
+    id = BestInPlace::Utils.build_best_in_place_id @user, :last_name
+    page.execute_script <<-JS
+      $("##{id}").bind('best_in_place:success', function() { $('body').append('Updated successfully!') });
+    JS
+
+    page.should have_no_content('Updated successfully!')
+    bip_text @user, :last_name, 'Empty'
+    page.should have_content('Updated successfully!')
+  end
+
   describe "display_as" do
     it "should render the address with a custom format" do
       @user.save!
@@ -778,8 +792,6 @@ describe "JS behaviour", :js => true do
     end
 
     describe "display_with using a lambda" do
-
-
       it "should render the money" do
         @user.save!
         visit user_path(@user)
@@ -788,8 +800,6 @@ describe "JS behaviour", :js => true do
           page.should have_content("$100.00")
         end
       end
-
-
 
       it "should show the new value using the helper after a successful update" do
         @user.save!
@@ -870,6 +880,23 @@ describe "JS behaviour", :js => true do
       visit double_init_user_path(@user)
 
       page.should have_link("link in this text", :href => "http://google.es")
+    end
+  end
+
+  it "should show the input with not-scaped ampersands with sanitize => false" do
+    @user.description = "A text with an & and a <b>Raw html</b>"
+    @user.save!
+
+    retry_on_timeout do
+      visit double_init_user_path(@user)
+
+      id = BestInPlace::Utils.build_best_in_place_id @user, :description
+      page.execute_script <<-JS
+        $("##{id}").click();
+      JS
+
+      text = page.find("##{id} textarea").value
+      text.should == "A text with an & and a <b>Raw html</b>"
     end
   end
 
